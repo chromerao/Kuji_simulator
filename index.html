@@ -13,6 +13,606 @@
   <div id="root"></div>
   
   <script type="text/babel">
+  
+const IchibanKujiSimulator = () => {
+  const [mode, setMode] = useState('custom');
+  const [prizes, setPrizes] = useState({
+    A: 2,
+    B: 3,
+    C: 5,
+    D: 10,
+    E: 15,
+    라스트원: 1
+  });
+  
+  const [wishList, setWishList] = useState({
+    A: false,
+    B: false,
+    C: false,
+    D: false,
+    E: false,
+    라스트원: true
+  });
+  
+  const [remaining, setRemaining] = useState({...prizes});
+  const [drawn, setDrawn] = useState([]);
+  const [pricePerDraw, setPricePerDraw] = useState(700);
+  const [celebration, setCelebration] = useState(null);
+  const [newGradeName, setNewGradeName] = useState('');
+  const [confirmDialog, setConfirmDialog] = useState(null);
+  
+  const [customPresets, setCustomPresets] = useState({
+    '원피스 해적왕': {
+      prizes: { A: 2, B: 3, C: 5, D: 10, E: 20, F: 30, G: 40, 라스트원: 1 },
+      price: 700
+    },
+    '포켓몬 피카츄': {
+      prizes: { A: 1, B: 2, C: 4, D: 8, E: 15, F: 25, G: 35, 라스트원: 1 },
+      price: 700
+    },
+    '귀멸의 칼날': {
+      prizes: { A: 2, B: 4, C: 6, D: 12, E: 18, F: 28, G: 40, 라스트원: 1 },
+      price: 700
+    }
+  });
+  
+  const [newPresetName, setNewPresetName] = useState('');
+
+  const gradeColors = {
+    A: 'bg-yellow-400 text-yellow-900',
+    B: 'bg-orange-400 text-orange-900',
+    C: 'bg-pink-400 text-pink-900',
+    D: 'bg-purple-400 text-purple-900',
+    E: 'bg-blue-400 text-blue-900',
+    F: 'bg-green-400 text-green-900',
+    G: 'bg-gray-400 text-gray-900',
+    라스트원: 'bg-red-500 text-white'
+  };
+
+  const getGradeColor = (grade) => {
+    return gradeColors[grade] || 'bg-indigo-400 text-indigo-900';
+  };
+
+  const isTopGrade = (grade) => {
+    const totalPrizes = Object.values(prizes).reduce((sum, count) => sum + count, 0);
+    const gradeCount = prizes[grade] || 0;
+    const percentage = (gradeCount / totalPrizes) * 100;
+    return percentage <= 10 || grade === '라스트원' || ['A', 'B', 'C'].includes(grade);
+  };
+
+  const handleCustomChange = (grade, value) => {
+    const newValue = Math.max(0, parseInt(value) || 0);
+    const newPrizes = {...prizes, [grade]: newValue};
+    setPrizes(newPrizes);
+    setRemaining(prev => ({...prev, [grade]: newValue}));
+  };
+
+  const addNewGrade = () => {
+    if (!newGradeName.trim()) {
+      return;
+    }
+    if (prizes[newGradeName]) {
+      return;
+    }
+    const newPrizes = {...prizes, [newGradeName]: 0};
+    setPrizes(newPrizes);
+    setRemaining(prev => ({...prev, [newGradeName]: 0}));
+    setWishList(prev => ({...prev, [newGradeName]: false}));
+    setNewGradeName('');
+  };
+
+  const confirmRemoveGrade = (gradeToRemove) => {
+    setConfirmDialog({
+      type: 'grade',
+      target: gradeToRemove,
+      message: `${gradeToRemove}상을 삭제하시겠습니까?`
+    });
+  };
+
+  const executeRemoveGrade = (gradeToRemove) => {
+    const newPrizesObj = {};
+    const newRemainingObj = {};
+    const newWishListObj = {};
+    
+    for (const key in prizes) {
+      if (key !== gradeToRemove) {
+        newPrizesObj[key] = prizes[key];
+        newRemainingObj[key] = remaining[key];
+        newWishListObj[key] = wishList[key];
+      }
+    }
+    
+    setPrizes(newPrizesObj);
+    setRemaining(newRemainingObj);
+    setWishList(newWishListObj);
+    setDrawn(prev => prev.filter(item => item.grade !== gradeToRemove));
+    setConfirmDialog(null);
+  };
+
+  const saveAsPreset = () => {
+    if (!newPresetName.trim()) {
+      return;
+    }
+    
+    if (customPresets[newPresetName]) {
+      setConfirmDialog({
+        type: 'overwrite',
+        target: newPresetName,
+        message: `"${newPresetName}" 프리셋이 이미 존재합니다. 덮어쓰시겠습니까?`
+      });
+    } else {
+      executeSavePreset(newPresetName);
+    }
+  };
+
+  const executeSavePreset = (name) => {
+    setCustomPresets(prev => ({
+      ...prev,
+      [name]: {
+        prizes: {...prizes},
+        price: pricePerDraw
+      }
+    }));
+    setNewPresetName('');
+    setConfirmDialog(null);
+  };
+
+  const loadPreset = (presetName) => {
+    const preset = customPresets[presetName];
+    setPrizes({...preset.prizes});
+    setRemaining({...preset.prizes});
+    setPricePerDraw(preset.price);
+    setDrawn([]);
+    
+    // 위시리스트 초기화
+    const newWishList = {};
+    for (const key in preset.prizes) {
+      newWishList[key] = key === '라스트원';
+    }
+    setWishList(newWishList);
+  };
+
+  const confirmDeletePreset = (presetName) => {
+    setConfirmDialog({
+      type: 'preset',
+      target: presetName,
+      message: `"${presetName}" 프리셋을 삭제하시겠습니까?`
+    });
+  };
+
+  const executeDeletePreset = (presetName) => {
+    const newPresetsObj = {};
+    
+    for (const key in customPresets) {
+      if (key !== presetName) {
+        newPresetsObj[key] = customPresets[key];
+      }
+    }
+    
+    setCustomPresets(newPresetsObj);
+    setConfirmDialog(null);
+  };
+
+  const handleConfirm = () => {
+    if (!confirmDialog) return;
+    
+    switch (confirmDialog.type) {
+      case 'grade':
+        executeRemoveGrade(confirmDialog.target);
+        break;
+      case 'preset':
+        executeDeletePreset(confirmDialog.target);
+        break;
+      case 'overwrite':
+        executeSavePreset(confirmDialog.target);
+        break;
+      default:
+        setConfirmDialog(null);
+    }
+  };
+
+  const getDrawnStats = () => {
+    const stats = {};
+    drawn.forEach(item => {
+      stats[item.grade] = (stats[item.grade] || 0) + 1;
+    });
+    return stats;
+  };
+
+  const triggerCelebration = (grade, isWish = false) => {
+    setCelebration({ grade, isWish });
+    setTimeout(() => setCelebration(null), 3000);
+  };
+
+  const drawPrize = () => {
+    const availableGrades = Object.entries(remaining)
+      .filter(([_, count]) => count > 0)
+      .flatMap(([grade, count]) => Array(count).fill(grade));
+    
+    if (availableGrades.length === 0) {
+      return;
+    }
+
+    const randomIndex = Math.floor(Math.random() * availableGrades.length);
+    const drawnGrade = availableGrades[randomIndex];
+    const isWish = wishList[drawnGrade];
+    
+    setRemaining(prev => ({
+      ...prev,
+      [drawnGrade]: prev[drawnGrade] - 1
+    }));
+    
+    setDrawn(prev => [...prev, {
+      grade: drawnGrade,
+      number: prev.length + 1,
+      timestamp: new Date().toLocaleTimeString(),
+      isWish: isWish
+    }]);
+
+    if (isWish || isTopGrade(drawnGrade)) {
+      triggerCelebration(drawnGrade, isWish);
+    }
+  };
+
+  const reset = () => {
+    setRemaining({...prizes});
+    setDrawn([]);
+  };
+
+  const totalPrizes = Object.values(prizes).reduce((sum, count) => sum + count, 0);
+  const remainingTotal = Object.values(remaining).reduce((sum, count) => sum + count, 0);
+  const totalCost = drawn.length * pricePerDraw;
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-purple-100 to-pink-100 p-6 relative overflow-hidden">
+      {/* 확인 다이얼로그 */}
+      {confirmDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-2xl max-w-md w-full p-6">
+            <div className="flex items-start gap-3 mb-4">
+              <AlertCircle className="text-orange-500 flex-shrink-0" size={24} />
+              <p className="text-lg font-semibold">{confirmDialog.message}</p>
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setConfirmDialog(null)}
+                className="px-6 py-2 bg-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-400 transition"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleConfirm}
+                className="px-6 py-2 bg-red-500 text-white rounded-lg font-semibold hover:bg-red-600 transition"
+              >
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 축하 이펙트 */}
+      {celebration && (
+        <div className="fixed inset-0 pointer-events-none z-50 flex items-center justify-center">
+          <div className="animate-bounce">
+            <div className={`${celebration.isWish ? 'bg-gradient-to-r from-pink-400 via-purple-500 to-pink-600' : 'bg-gradient-to-r from-yellow-400 via-pink-500 to-purple-600'} text-white px-12 py-8 rounded-2xl shadow-2xl text-center transform scale-110`}>
+              <Sparkles className="mx-auto mb-4" size={64} />
+              <div className="text-5xl font-bold mb-2">
+                {celebration.isWish ? '위시 획득! 💖' : '축하합니다! 🎉'}
+              </div>
+              <div className="text-3xl font-bold">{celebration.grade}상 당첨!</div>
+            </div>
+          </div>
+          <div className="absolute inset-0">
+            {[...Array(celebration.isWish ? 50 : 30)].map((_, i) => (
+              <div
+                key={i}
+                className="absolute animate-ping"
+                style={{
+                  left: `${Math.random() * 100}%`,
+                  top: `${Math.random() * 100}%`,
+                  animationDelay: `${Math.random() * 0.5}s`,
+                  animationDuration: `${1 + Math.random()}s`
+                }}
+              >
+                {celebration.isWish ? (
+                  <span className="text-4xl">💖</span>
+                ) : (
+                  <Sparkles 
+                    size={20 + Math.random() * 20} 
+                    className="text-yellow-400"
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="max-w-6xl mx-auto">
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-bold text-purple-800 mb-2">쿠지 시뮬레이터</h1>
+          <p className="text-gray-600">실제 도전 전에 운을 시험해보세요!</p>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+          <div className="flex gap-4 mb-4">
+            <button
+              onClick={() => setMode('custom')}
+              className={`px-6 py-3 rounded-lg font-semibold transition ${
+                mode === 'custom' 
+                  ? 'bg-purple-600 text-white' 
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              커스텀 설정
+            </button>
+            <button
+              onClick={() => setMode('preset')}
+              className={`px-6 py-3 rounded-lg font-semibold transition ${
+                mode === 'preset' 
+                  ? 'bg-purple-600 text-white' 
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              프리셋 선택
+            </button>
+          </div>
+
+          {mode === 'custom' ? (
+            <div>
+              <h3 className="font-semibold text-lg mb-4">상품 구성 설정</h3>
+              
+              <div className="bg-purple-50 p-4 rounded-lg mb-4">
+                <div className="flex gap-2 mb-3">
+                  <input
+                    type="text"
+                    value={newGradeName}
+                    onChange={(e) => setNewGradeName(e.target.value)}
+                    placeholder="새 등급 이름 (예: S, SS, Special 등)"
+                    className="flex-1 border-2 border-gray-300 rounded px-3 py-2 focus:border-purple-500 outline-none"
+                    onKeyPress={(e) => e.key === 'Enter' && addNewGrade()}
+                  />
+                  <button
+                    onClick={addNewGrade}
+                    className="bg-purple-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-purple-700 transition flex items-center gap-2"
+                  >
+                    <Plus size={20} />
+                    등급 추가
+                  </button>
+                </div>
+                
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newPresetName}
+                    onChange={(e) => setNewPresetName(e.target.value)}
+                    placeholder="프리셋 이름을 입력하세요"
+                    className="flex-1 border-2 border-gray-300 rounded px-3 py-2 focus:border-purple-500 outline-none"
+                    onKeyPress={(e) => e.key === 'Enter' && saveAsPreset()}
+                  />
+                  <button
+                    onClick={saveAsPreset}
+                    className="bg-green-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-700 transition flex items-center gap-2"
+                  >
+                    <Save size={20} />
+                    프리셋 저장
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                {Object.entries(prizes).map(([grade, count]) => (
+                  <div key={grade} className="bg-gray-50 p-4 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={wishList[grade] || false}
+                          onChange={(e) => setWishList(prev => ({...prev, [grade]: e.target.checked}))}
+                          className="w-5 h-5 text-pink-600 rounded focus:ring-pink-500"
+                          title="위시 체크"
+                        />
+                        <label className="text-xs text-gray-600">위시</label>
+                      </div>
+                      <div className="flex-1">
+                        <label className="text-sm font-semibold mb-2 block">{grade}상</label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={count}
+                          onChange={(e) => handleCustomChange(grade, e.target.value)}
+                          className="w-full border-2 border-gray-300 rounded px-3 py-2 focus:border-purple-500 outline-none"
+                        />
+                      </div>
+                      <div className="pt-6">
+                        <button
+                          onClick={() => confirmRemoveGrade(grade)}
+                          className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition"
+                        >
+                          삭제
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              <div className="mt-4">
+                <label className="text-sm font-semibold mb-1 block">1회 가격 (원)</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={pricePerDraw}
+                  onChange={(e) => setPricePerDraw(Math.max(0, parseInt(e.target.value) || 0))}
+                  className="border-2 border-gray-300 rounded px-3 py-2 focus:border-purple-500 outline-none w-40"
+                />
+              </div>
+            </div>
+          ) : (
+            <div>
+              <h3 className="font-semibold text-lg mb-4">프리셋 선택</h3>
+              <div className="space-y-3">
+                {Object.keys(customPresets).map(presetName => (
+                  <div key={presetName} className="flex gap-3">
+                    <button
+                      onClick={() => loadPreset(presetName)}
+                      className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 text-white px-6 py-4 rounded-lg font-semibold hover:from-purple-600 hover:to-pink-600 transition"
+                    >
+                      {presetName}
+                    </button>
+                    <button
+                      onClick={() => confirmDeletePreset(presetName)}
+                      className="bg-red-500 text-white px-6 py-4 rounded-lg font-semibold hover:bg-red-600 transition"
+                    >
+                      삭제
+                    </button>
+                  </div>
+                ))}
+              </div>
+              {Object.keys(customPresets).length === 0 && (
+                <div className="text-center py-8 text-gray-500">
+                  저장된 프리셋이 없습니다. 커스텀 설정에서 프리셋을 저장해보세요!
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          <div className="bg-white rounded-lg shadow-lg p-6">
+            <h3 className="font-bold text-xl mb-4 text-purple-800">남은 상품</h3>
+            <div className="space-y-2 max-h-96 overflow-y-auto">
+              {Object.entries(remaining).map(([grade, count]) => {
+                const probability = remainingTotal > 0 ? ((count / remainingTotal) * 100).toFixed(2) : 0;
+                return (
+                  <div key={grade} className="flex justify-between items-center">
+                    <span className={`px-3 py-1 rounded font-semibold ${getGradeColor(grade)} flex items-center gap-2`}>
+                      {grade}상 
+                      {wishList[grade] && <span className="text-pink-600">💖</span>}
+                      {isTopGrade(grade) && <Sparkles className="inline" size={16} />}
+                    </span>
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-semibold text-purple-600 bg-purple-50 px-2 py-1 rounded">
+                        {probability}%
+                      </span>
+                      <span className="font-semibold text-lg">{count}개</span>
+                    </div>
+                  </div>
+                );
+              })}
+              <div className="border-t-2 pt-2 mt-2">
+                <div className="flex justify-between items-center font-bold text-lg">
+                  <span>총 남은 수량</span>
+                  <span className="text-purple-600">{remainingTotal}개</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg shadow-lg p-6">
+            <h3 className="font-bold text-xl mb-4 text-purple-800">뽑기</h3>
+            <div className="space-y-4">
+              <button
+                onClick={drawPrize}
+                disabled={remainingTotal === 0}
+                className="w-full bg-gradient-to-r from-yellow-400 to-orange-500 text-white px-8 py-4 rounded-lg font-bold text-xl hover:from-yellow-500 hover:to-orange-600 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                <Gift size={24} />
+                뽑기 ({pricePerDraw}원)
+              </button>
+              
+              <button
+                onClick={reset}
+                className="w-full bg-gray-500 text-white px-6 py-3 rounded-lg font-semibold hover:bg-gray-600 transition flex items-center justify-center gap-2"
+              >
+                <RotateCcw size={20} />
+                초기화
+              </button>
+
+              <div className="bg-purple-50 p-4 rounded-lg space-y-2">
+                <div className="flex justify-between">
+                  <span className="font-semibold">뽑은 횟수</span>
+                  <span className="text-purple-600 font-bold">{drawn.length}회</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-semibold">총 비용</span>
+                  <span className="text-red-600 font-bold">{totalCost.toLocaleString()}원</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-semibold">진행률</span>
+                  <span className="text-green-600 font-bold">
+                    {totalPrizes > 0 ? ((drawn.length / totalPrizes) * 100).toFixed(1) : 0}%
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {drawn.length > 0 && (
+          <div className="bg-white rounded-lg shadow-lg p-6">
+            <h3 className="font-bold text-xl mb-4 text-purple-800 flex items-center justify-between">
+              <span>뽑기 결과</span>
+              <button
+                onClick={() => setDrawn([])}
+                className="text-sm bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition flex items-center gap-1"
+              >
+                <Trash2 size={16} />
+                결과 지우기
+              </button>
+            </h3>
+            
+            <div className="mb-6 bg-gradient-to-r from-purple-50 to-pink-50 p-4 rounded-lg">
+              <h4 className="font-semibold text-lg mb-3 text-purple-800">획득 현황</h4>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                {Object.entries(getDrawnStats())
+                  .sort((a, b) => {
+                    const gradeOrder = Object.keys(prizes);
+                    return gradeOrder.indexOf(a[0]) - gradeOrder.indexOf(b[0]);
+                  })
+                  .map(([grade, count]) => (
+                    <div 
+                      key={grade} 
+                      className={`${getGradeColor(grade)} p-3 rounded-lg shadow-sm flex items-center justify-between`}
+                    >
+                      <span className="font-bold text-lg flex items-center gap-1">
+                        {grade}상
+                        {isTopGrade(grade) && <Sparkles size={14} />}
+                      </span>
+                      <span className="font-bold text-2xl">{count}개</span>
+                    </div>
+                  ))}
+              </div>
+            </div>
+
+            <h4 className="font-semibold text-lg mb-3 text-purple-800">뽑기 히스토리</h4>
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 max-h-96 overflow-y-auto">
+              {drawn.slice().reverse().map((item, index) => (
+                <div
+                  key={drawn.length - index}
+                  className={`p-4 rounded-lg text-center ${getGradeColor(item.grade)} shadow ${
+                    item.isWish ? 'ring-4 ring-pink-400 ring-offset-2' : 
+                    isTopGrade(item.grade) ? 'ring-2 ring-yellow-400 ring-offset-2' : ''
+                  }`}
+                >
+                  <div className="font-bold text-2xl flex items-center justify-center gap-1">
+                    {item.grade}
+                    {item.isWish && <span className="text-pink-600">💖</span>}
+                    {isTopGrade(item.grade) && <Sparkles size={16} />}
+                  </div>
+                  <div className="text-xs mt-1">#{item.number}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default IchibanKujiSimulator;
     // 여기에 App.jsx의 전체 코드를 붙여넣기
     // (import 문들은 제거하고 컴포넌트 코드만)
   </script>
@@ -25,3 +625,4 @@
   </script>
 </body>
 </html>
+
