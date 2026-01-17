@@ -8,6 +8,14 @@
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <!-- iOS 웹앱 설정 (기존 head 태그 안에 추가) -->
+<meta name="apple-mobile-web-app-capable" content="yes"> <!-- 주소창 없애기 -->
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"> <!-- 상태바 투명하게 -->
+<meta name="apple-mobile-web-app-title" content="쿠지 시뮬"> <!-- 홈 화면 아이콘 이름 -->
+
+<!-- 아이콘 설정 (아이콘 이미지 파일이 필요합니다) -->
+<!-- 만약 이미지가 없다면 아래 줄은 무시되거나 기본 화면이 캡쳐됩니다 -->
+<link rel="apple-touch-icon" href="https://via.placeholder.com/192/800080/ffffff?text=KUJI">
   <!-- Lucide 아이콘을 위한 스크립트 추가 (선택사항이지만 아래 임시 아이콘으로 대체함) -->
 </head>
 <body>
@@ -662,5 +670,6 @@
   </script>
 </body>
 </html>
+
 
 
