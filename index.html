@@ -67,7 +67,7 @@
         C: 5,
         D: 10,
         E: 15,
-        라스트원: 1
+        MEGU: 1
       });
       
       const [wishList, setWishList] = useState({
@@ -76,7 +76,7 @@
         C: false,
         D: false,
         E: false,
-        라스트원: true
+        MEGU: true
       });
       
       const [remaining, setRemaining] = useState({...prizes});
@@ -88,15 +88,15 @@
       
       const [customPresets, setCustomPresets] = useState({
         'BLEACH': {
-          prizes: { A: 2, B: 3, C: 5, D: 10, E: 20, F: 30, G: 40, 라스트원: 1 },
+          prizes: { A: 2, B: 3, C: 5, D: 10, E: 20, F: 30, G: 40, MEGU: 1 },
           price: 700
         },
         'MEGUMI': {
-          prizes: { A: 1, B: 2, C: 4, D: 8, E: 15, F: 25, G: 35, 라스트원: 1 },
+          prizes: { A: 1, B: 2, C: 4, D: 8, E: 15, F: 25, G: 35, MEGU: 1 },
           price: 700
         },
         '귀멸의 칼날': {
-          prizes: { A: 2, B: 4, C: 6, D: 12, E: 18, F: 28, G: 40, 라스트원: 1 },
+          prizes: { A: 2, B: 4, C: 6, D: 12, E: 18, F: 28, G: 40, MEGU: 1 },
           price: 700
         }
       });
@@ -111,7 +111,7 @@
         E: 'bg-blue-400 text-blue-900',
         F: 'bg-green-400 text-green-900',
         G: 'bg-gray-400 text-gray-900',
-        라스트원: 'bg-red-500 text-white'
+        MEGU: 'bg-red-500 text-white'
       };
 
       const getGradeColor = (grade) => {
@@ -122,7 +122,7 @@
         const totalPrizes = Object.values(prizes).reduce((sum, count) => sum + count, 0);
         const gradeCount = prizes[grade] || 0;
         const percentage = (gradeCount / totalPrizes) * 100;
-        return percentage <= 10 || grade === '라스트원' || ['A', 'B', 'C'].includes(grade);
+        return percentage <= 10 || grade === 'MEGU' || ['A', 'B', 'C'].includes(grade);
       };
 
       const handleCustomChange = (grade, value) => {
@@ -662,4 +662,5 @@
   </script>
 </body>
 </html>
+
 
